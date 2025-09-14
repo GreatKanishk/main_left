@@ -12,6 +12,7 @@
 #include <zephyr/bluetooth/hci_vs.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
+#include <zephyr/bluetooth/buf.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
@@ -81,41 +82,95 @@ static struct k_work_delayable blink_work;
 static bool led_is_on;
 
 
-//BLE Radio Power Setting Function
-static void set_tx_power(uint8_t handle_type, uint16_t handle, int8_t tx_pwr_lvl)
-{
-	struct bt_hci_cp_vs_write_tx_power_level *cp;
-	struct bt_hci_rp_vs_write_tx_power_level *rp;
-	struct net_buf *buf, *rsp = NULL;
-	int err;
+// //BLE Radio Power Setting Function
+// static void set_tx_power(uint8_t handle_type, uint16_t handle, int8_t tx_pwr_lvl)
+// {
+// 	struct bt_hci_cp_vs_write_tx_power_level *cp;
+// 	struct bt_hci_rp_vs_write_tx_power_level *rp;
+// 	struct net_buf *buf, *rsp = NULL;
+// 	int err;
 
-	buf = bt_hci_cmd_create(BT_HCI_OP_VS_WRITE_TX_POWER_LEVEL,
-				sizeof(*cp));
-	if (!buf) {
-		printk("Unable to allocate command buffer\n");
-		return;
-	}
+// 	buf = bt_hci_cmd_create(BT_HCI_OP_VS_WRITE_TX_POWER_LEVEL,
+// 				sizeof(*cp));
+// 	if (!buf) {
+// 		printk("Unable to allocate command buffer\n");
+// 		return;
+// 	}
 
-	cp = net_buf_add(buf, sizeof(*cp));
-	cp->handle = sys_cpu_to_le16(handle);
-	cp->handle_type = handle_type;
-	cp->tx_power_level = tx_pwr_lvl;
+// 	cp = net_buf_add(buf, sizeof(*cp));
+// 	cp->handle = sys_cpu_to_le16(handle);
+// 	cp->handle_type = handle_type;
+// 	cp->tx_power_level = tx_pwr_lvl;
 
-	err = bt_hci_cmd_send_sync(BT_HCI_OP_VS_WRITE_TX_POWER_LEVEL,
-				   buf, &rsp);
-	if (err) {
-		uint8_t reason = rsp ?
-			((struct bt_hci_rp_vs_write_tx_power_level *)
-			  rsp->data)->status : 0;
-		printk("Set Tx power err: %d reason 0x%02x\n", err, reason);
-		return;
-	}
+// 	err = bt_hci_cmd_send_sync(BT_HCI_OP_VS_WRITE_TX_POWER_LEVEL,
+// 				   buf, &rsp);
+// 	if (err) {
+// 		uint8_t reason = rsp ?
+// 			((struct bt_hci_rp_vs_write_tx_power_level *)
+// 			  rsp->data)->status : 0;
+// 		printk("Set Tx power err: %d reason 0x%02x\n", err, reason);
+// 		return;
+// 	}
 
-	rp = (void *)rsp->data;
-	printk("Actual Tx Power: %d\n", rp->selected_tx_power);
+// 	rp = (void *)rsp->data;
+// 	printk("Actual Tx Power: %d\n", rp->selected_tx_power);
 
-	net_buf_unref(rsp);
-}
+// 	net_buf_unref(rsp);
+// }
+
+
+// void read_tx_power(void)
+// {
+//     struct bt_hci_cp_vs_read_tx_power_level *cp;
+//     struct bt_hci_rp_vs_read_tx_power_level *rp;
+//     struct net_buf *buf, *rsp = NULL;
+//     int err;
+
+//     // Allocate buffer for command parameters
+//     buf = bt_hci_cmd_create(BT_HCI_OP_VS_READ_TX_POWER_LEVEL, sizeof(*cp));
+//     if (!buf) {
+//         printk("Unable to allocate command buffer\n");
+//         return;
+//     }
+
+//     cp = net_buf_add(buf, sizeof(*cp));
+//     cp->handle_type = BT_HCI_VS_LL_HANDLE_TYPE_ADV;
+//     cp->handle = 0;
+
+//     // Send command and wait for response
+//     err = bt_hci_cmd_send_sync(BT_HCI_OP_VS_READ_TX_POWER_LEVEL, buf, &rsp);
+//     if (err) {
+//         printk("Read TX power level failed (err %d)\n", err);
+//         return;
+//     }
+
+//     // Parse response
+//     rp = (struct bt_hci_rp_vs_read_tx_power_level *)rsp->data;
+//     printk("Current TX power: %d dBm\n", rp->tx_power_level);
+
+//     // Clean up response buffer
+//     net_buf_unref(rsp);
+// }
+
+
+
+// #include <zephyr/bluetooth/hci_vs.h>
+
+// void read_tx_power(void)
+// {
+//     struct bt_hci_rp_vs_read_tx_power_level rp;
+//     struct bt_hci_cp_vs_read_tx_power_level cp;
+    
+//     cp.handle_type = BT_HCI_VS_LL_HANDLE_TYPE_ADV;
+//     cp.handle = 0;
+    
+//     int err = bt_hci_cmd_send_sync(BT_HCI_OP_VS_READ_TX_POWER_LEVEL,
+//                                    &cp, sizeof(cp), &rp, sizeof(rp));
+    
+//     if (!err) {
+//         printk("Current TX power: %d dBm\n", rp.tx_power_level);
+//     }
+// }
 
 
 /* Timer for motor control */
@@ -294,7 +349,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	if (err) {
 		printk("Connection failed, err 0x%02x %s\n", err, bt_hci_err_to_str(err));
 	} else {
-    set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, 0 ,8);
+    // set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, 0 ,8);
 		printk("Connected\n");
 
 		(void)atomic_set_bit(state, STATE_CONNECTED);
@@ -352,7 +407,7 @@ int main(void)
 
 #if !defined(CONFIG_BT_EXT_ADV)
 
-  set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, 4);
+  // set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, 4);
 
 	printk("Starting Legacy Advertising (connectable and scannable)\n");
 	err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
@@ -425,7 +480,7 @@ int main(void)
 #endif /* HAS_MOTOR_LED */
 		} else if (atomic_test_and_clear_bit(state, STATE_DISCONNECTED)) {
 #if !defined(CONFIG_BT_EXT_ADV)
-      set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, 8);
+      // set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, 8);
 			printk("Starting Legacy Advertising (connectable and scannable)\n");
 			err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd,
 					      ARRAY_SIZE(sd));
